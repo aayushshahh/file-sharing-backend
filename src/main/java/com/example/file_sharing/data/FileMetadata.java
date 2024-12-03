@@ -10,9 +10,9 @@ import java.time.LocalDateTime;
 @Entity // Map class to database table
 @Data // Lombok Annotation for Getters and Setters
 @NoArgsConstructor
-@AllArgsConstructor 
+@AllArgsConstructor
 public class FileMetadata {
-    
+
     @Id // Primary Key for Database
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Generate Unique ID
     private Long id;
@@ -21,4 +21,5 @@ public class FileMetadata {
     private String fileLocation;
     private String uniqueURL;
     private LocalDateTime uploadTimeStamp;
+    private String contentType;
 }

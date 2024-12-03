@@ -11,4 +11,6 @@ import com.example.file_sharing.data.FileMetadata;
 @Repository
 public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long> {
     List<FileMetadata> findByUploadTimeStampBefore(LocalDateTime dateTime);
+
+    FileMetadata findByUniqueURL(String uniqueURL);
 }
