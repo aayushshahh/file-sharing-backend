@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.example.file_sharing.data.FileMetadata;
 import com.example.file_sharing.exception.MissingPasswordException;
@@ -44,10 +43,15 @@ public class FileController {
             if (password.equals("") || password.length() == 0) {
                 throw new MissingPasswordException("Password is required to store the files");
             }
-            System.out.println(ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString());
             String testEndpointString = fileService.uploadFile(file.getBytes(), file.getOriginalFilename(), password,
                     file.getContentType());
-            String serverURL = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+            String scheme = request.getHeader("X-Forwarded-Proto");
+            if (scheme == null) {
+                scheme = request.getScheme(); // Default to current scheme
+                System.out.println("Default Gateway only working");
+            }
+            String serverURL = scheme + "://" + request.getServerName() + (request.getServerPort() == 80
+                    || request.getServerPort() == 443 ? "" : ":" + request.getServerPort());
             String completeDownloadURL = serverURL + "/api/v1/files/download/" + testEndpointString;
             return ResponseEntity.ok(completeDownloadURL);
         } catch (Exception e) {
