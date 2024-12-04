@@ -8,7 +8,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.file_sharing.data.FileMetadata;
+import com.example.file_sharing.exception.MissingPasswordException;
 import com.example.file_sharing.service.FileService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/v1/files")
-@CrossOrigin(origins = "http://localhost:3000", exposedHeaders = "Content-Disposition")
 public class FileController {
     private final FileService fileService;
 
@@ -41,6 +40,9 @@ public class FileController {
             if (file.getSize() > MAX_FILE_SIZE) {
                 return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("File size exceeds the limit of 1MB");
             }
+            if (password.equals("") || password.length() == 0) {
+                throw new MissingPasswordException("Password is required to store the files");
+            }
             String testEndpointString = fileService.uploadFile(file.getBytes(), file.getOriginalFilename(), password,
                     file.getContentType());
             String serverURL = request.getScheme() + "://" + request.getServerName() + (request.getServerPort() == 80
@@ -55,6 +57,9 @@ public class FileController {
     @GetMapping("/download/{url}")
     public ResponseEntity<?> downloadFile(@PathVariable("url") String url, @RequestParam("password") String password) {
         try {
+            if (password.equals("") || password.length() == 0) {
+                throw new MissingPasswordException("Password is required to decrypt and access the files");
+            }
             File originalFile = fileService.downloadFile(url, password);
             FileMetadata metadata = fileService.getMetadata(url);
             Resource resource = new FileSystemResource(originalFile);
@@ -64,7 +69,7 @@ public class FileController {
                     .body(resource);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("File Not Found as it has expired the time limit of 48 hours");
+                    .body(e.getMessage());
         }
     }
 }

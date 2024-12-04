@@ -1,6 +1,7 @@
 package com.example.file_sharing.service;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.example.file_sharing.data.FileMetadata;
+import com.example.file_sharing.exception.IncorrectPasswordException;
 import com.example.file_sharing.repository.FileMetadataRepository;
 
 @Service
@@ -49,17 +51,25 @@ public class FileService {
 
     public File downloadFile(String uniqueURL, String password) throws Exception {
         FileMetadata metadata = repository.findByUniqueURL(uniqueURL);
+        if (metadata == null) {
+            throw new FileNotFoundException(
+                    "The File associated with the URL is not found, its either missing or expired");
+        }
         byte[] encryptedData = Files.readAllBytes(Paths.get(metadata.getFileLocation()));
         SecretKey secretKey = generateKey(password);
-        byte[] decryptedData = decryptFile(encryptedData, secretKey);
-        File tempFile = File.createTempFile("decrypted-", metadata.getFileName());
-        Files.write(tempFile.toPath(), decryptedData);
-        return tempFile;
+        try {
+            byte[] decryptedData = decryptFile(encryptedData, secretKey);
+            File tempFile = File.createTempFile("decrypted-", metadata.getFileName());
+            Files.write(tempFile.toPath(), decryptedData);
+            return tempFile;
+        } catch (Exception e) {
+            throw new IncorrectPasswordException("The password provided is incorrect, cannot access secure file");
+        }
     }
 
-    @Scheduled(fixedRate = 600000) // milliseconds
+    @Scheduled(fixedRate = 3600000) // milliseconds
     public void cleanExpiredFiles() {
-        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime expiryTime = LocalDateTime.now().minusHours(48);
         repository.findByUploadTimeStampBefore(expiryTime).forEach(metadata -> {
             new File(metadata.getFileLocation()).delete();
             repository.delete(metadata);
@@ -67,19 +77,19 @@ public class FileService {
         System.out.println("Expired Files Cleaned Up at " + Instant.now());
     }
 
-    private SecretKey generateKey(String password) throws Exception {
+    public SecretKey generateKey(String password) throws Exception {
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         byte[] key = sha.digest(password.getBytes("UTF-8"));
         return new SecretKeySpec(key, 0, 32, "AES");
     }
 
-    private byte[] encryptFile(byte[] data, SecretKey secretKey) throws Exception {
+    public byte[] encryptFile(byte[] data, SecretKey secretKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         return cipher.doFinal(data);
     }
 
-    private byte[] decryptFile(byte[] data, SecretKey secretKey) throws Exception {
+    public byte[] decryptFile(byte[] data, SecretKey secretKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
         return cipher.doFinal(data);
