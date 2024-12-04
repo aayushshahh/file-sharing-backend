@@ -18,7 +18,7 @@ Response
 
 Example
 
-![alt text](./static/uploadApi.png "Postman Screenshot for Upload API)
+![alt text](./static/uploadApi.png "Postman Screenshot for Upload API")
 
 2. `/api/v1/files/download/{url} - GET`
 
